@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/
+
+# Virtual environment (아까 지운 venv)
+venv/
+.venv/
+env/

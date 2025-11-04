@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>버림패 추천 결과</title>
+    <style>
+        .block { margin: 10px 0; padding: 10px; border: 1px solid black; border-radius: 5px; }
+        .complete { background-color: #e6ffe6; }
+        .pair { background-color: #fff0e6; }
+        .single { background-color: #ffe6e6; }
+        .tile-image { width: 40px; height: 60px; margin: 5px; border: 1px solid black; }
+        .available-tiles { margin: 20px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .clickable-tile { width: 40px; height: 60px; margin: 5px; cursor: pointer; transition: transform 0.2s; border: 1px solid black; }
+        .clickable-tile.selected { border: 2px solid #4CAF50; }
+        .clickable-tile:hover { transform: translateY(-5px); }
+        .btn { padding: 12px 24px; border-radius: 8px; 
+               text-decoration: none; 
+               font-size: 18px; color: aliceblue;
+               display: inline-block;}
+        .hand-display { margin: 20px 0; }
+        .warning-message { background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin: 10px 0; border: 1px solid #ffeeba; }
+        .edit-button { background-color: deepskyblue; color: white; padding: 8px 15px; border: none; border-radius: 8px; cursor: pointer; font-size: 20px; margin-left: 10px; }
+        .edit-button:hover { background-color: #0069d9; }
+        .shanten-info { background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #b3e5fc; }
+        .shanten-info.tenpai { background-color: #e6ffe6; border: 2px solid #4CAF50; }
+        .effective-tiles { display: flex; flex-wrap: wrap; margin: 10px 0; }
+        .discard-options { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
+        .discard-option { border: 1px solid #ddd; border-radius: 5px; padding: 10px; width: 180px; text-align: center; transition: transform 0.2s; }
+        .discard-option:hover { transform: translateY(-5px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .best-option { border: 2px solid #4CAF50; background-color: #f1f8e9; }
+        .selectable-tiles { margin: 20px 0; padding: 15px; border: 2px dashed #4CAF50; border-radius: 10px; }
+        @media screen and (max-width: 1000px){
+            h1 { font-size: 80px; color: rgb(44, 102, 168); }
+            h2 { font-size: 60px; }
+            h3 { font-size: 20px; }
+            h4 { font-size: 30px; }
+            .edit-button { background-color:deepskyblue; color: white; padding: 15px 30px; 
+                           border: none; border-radius: 8px; cursor: pointer; font-size: 50px; 
+                           margin-left: 250px; }
+            body { height: 100vh; }
+            .hand-display { margin: 50px 30px; }
+            .tile-image { width: 100px; height: 150px; margin: 15px; border: 1px solid black; }
+            .clickable-tile { width: 100px; height: 150px; margin: 10px; cursor: pointer; 
+                              transition: transform 0.2s; border: 1px solid black; }
+            .clickable-tile.selected { border: 10px solid #4CAF50; }
+            .btn { padding: 25px 40px; border-radius: 8px; text-decoration: none; 
+                   font-size: 40px; color: white;
+                   display: inline-block;}
+        }
+    </style>
+</head>
+<body>
+    <h1>&nbsp버림패 추천 결과</h1>
+    {% if result.warning %}
+        <div class="warning-message"><p>{{ result.warning }}</p></div>
+    {% endif %}
+    {% if result.error %}
+        <p>{{ result.error }}</p>
+        <p><a href="{{ url_for('discard.discard_recommendation') }}" class="btn" style="background-color: #4CAF50;">다시 시도하기</a></p>
+    {% else %}
+        <h2>&nbsp현재 패
+            <form action="{{ url_for('discard.discard_edit_tiles') }}" method="POST" style="display: inline;">
+                {% for tile in result.original_hand %}<input type="hidden" name="edited_tiles[]" value="{{ tile }}">{% endfor %}
+                <button class="edit-button" style="float: right;">패 수정하기</button>                
+            </form>
+        </h2>
+        <div class="hand-display">
+            {% for tile in result.original_hand %}
+                <img src="{{ url_for('static', filename='images/tiles/' + tile + '.png') }}" alt="{{ tile }}" class="tile-image">
+            {% endfor %}
+        </div>
+        {% set strong_style = "font-size:1.3em;" + (" color:#28a745;" if result.current_shanten == 0 else "") %}
+        <div class="shanten-info {% if result.current_shanten == 0 %}tenpai{% endif %}">
+            <h2>샤텐 수 정보</h2>
+            <p>
+                현재 패의 샤텐 수: 
+                <strong style="{{ strong_style }}">
+                    {{ result.current_shanten }}{% if result.current_shanten == 0 %} (텐파이!){% endif %}
+                </strong>
+                (화료까지 필요한 교체 횟수)
+            </p>
+            {% if result.discard_analysis and result.discard_analysis[result.recommended_discard] %}
+                {% set best_analysis = result.discard_analysis[result.recommended_discard] %}
+                <p>추천 버림패 후 샤텐 수: <strong>{{ best_analysis.shanten_after }}</strong></p>
+                <br>
+                {% if best_analysis.effective_tiles %}
+                    {% if result.current_shanten == 0 %}
+                        <h3>오름패 ({{ best_analysis.effective_count }}개)</h3>
+                        <p style="font-size: 1.2em; color: #155724; font-weight: bold;">
+                            텐파이입니다!<br>
+                            이제 오름패(유효패)를 뽑으면 <span style="color: #d6336c;">론</span> 또는 <span style="color: #1971c2;">쯔모</span>로 이길 수 있습니다!
+                        </p>
+                    {% else %}
+                        <h3>유효 패 ({{ best_analysis.effective_count }}개)</h3>
+                        <p>다음 패를 뽑으면 샤텐 수가 감소합니다:</p>
+                    {% endif %}
+                    <div class="effective-tiles">
+                        {% for tile in best_analysis.effective_tiles %}
+                            <img src="{{ url_for('static', filename='images/tiles/' + tile + '.png') }}" alt="{{ tile }}" class="tile-image">
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        <h2>추천 버림패</h2>
+        <div class="hand-display">
+            <img src="{{ url_for('static', filename='images/tiles/' + result.recommended_discard + '.png') }}" alt="{{ result.recommended_discard }}" class="tile-image">
+        </div>
+        <h2>추천 이유</h2>
+        <p>{{ result.recommendation_reason }}</p>
+        {% if result.discard_analysis %}
+            <h2>버림패 옵션 비교</h2>
+            <div class="discard-options">
+                {% for tile, analysis in result.discard_analysis.items() %}
+                    <div class="discard-option {% if tile == result.recommended_discard %}best-option{% endif %}">
+                        <img src="{{ url_for('static', filename='images/tiles/' + tile + '.png') }}" alt="{{ tile }}" class="tile-image">
+                        <h3>샤텐 수: {{ analysis.shanten_after }}</h3>
+                        <h4>유효 패: {{ analysis.effective_count }}개</h4>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% if result.block_analysis %}
+            <h2>패 구성 분석</h2>
+            {% set analysis = result.block_analysis[result.recommended_discard] %}
+            {% if analysis.blocks %}
+                {% for block in analysis.blocks %}
+                    <div class="block {% if block|length == 3 %}complete{% elif block|length == 2 %}pair{% else %}single{% endif %}">
+                        {% if block|length == 3 %}
+                            <h3>완성된 세 패</h3>
+                        {% elif block|length == 2 %}
+                            <h3>연결 가능한 두 패</h3>
+                        {% else %}
+                            <h3>단독 패</h3>
+                        {% endif %}
+                        <div>
+                        {% for tile in block %}
+                            <img src="{{ url_for('static', filename='images/tiles/' + tile + '.png') }}" alt="{{ tile }}" class="tile-image">
+                        {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endif %}
+        <!-- 다음 패 선택 영역 (버림패 분석 아래에 위치) -->
+        <div class="selectable-tiles">
+            <h2>다음 패 선택</h2>
+            <form id="next-tile-form" method="POST" action="{{ url_for('discard.next_tile') }}">
+                <input type="hidden" name="discard_tile" value="{{ result.recommended_discard }}">
+                {% for tile in result.original_hand %}
+                    <input type="hidden" name="current_tiles[]" value="{{ tile }}">
+                {% endfor %}
+                <input type="hidden" id="selected_tile" name="selected_tile">
+                <div class="available-tiles">
+                    {% for tile in result.available_tiles %}
+                        <img src="{{ url_for('static', filename='images/tiles/' + tile + '.png') }}"
+                             alt="{{ tile }}"
+                             onclick="selectTile('{{ tile }}')"
+                             class="clickable-tile"
+                             title="{{ tile }}">
+                    {% endfor %}
+                </div>
+                <button class="btn" style="background-color: #4CAF50;">분석하기</button>
+                <a href="/" class="btn" style="background-color: #2196F3; float: right;">메인으로 돌아가기</a>
+            </form>
+        </div>
+    {% endif %}
+    <script>
+        function selectTile(tile) {
+            document.getElementById('selected_tile').value = tile;
+            document.querySelectorAll('.clickable-tile').forEach(img => {
+                img.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+        }
+    </script>
+</body>
+</html>

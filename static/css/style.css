@@ -1,0 +1,102 @@
+.tile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    gap: 5px;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 5px;
+}
+
+.tile-image {
+    width: 40px;
+    height: 60px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    border: 1px solid black; /* 검정색 테두리로 변경 */
+}
+
+.tile-image:hover {
+    transform: scale(1.1);
+}
+
+.tile-image.selected {
+    border: 2px solid #ff0000;  /* 선택된 패만 빨간 테두리 */
+}
+
+.selected-tile-display {
+    margin-top: 10px;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.selected-tile-display img {
+    width: 40px;  /* tile-image와 동일한 너비 */
+    height: 60px; /* tile-image와 동일한 높이 */
+    object-fit: contain; /* 이미지 비율 유지 */
+}
+
+.options-section {
+    margin: 20px 0;
+    padding: 15px;
+    background: #fff;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.tile-image.red-dora {
+    border: 2px solid #ff0000;
+}
+
+.tile-image.red-dora:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+}
+.toggle-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 5px;
+}
+
+.toggle-options label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+}
+
+.round-selection, .seat-selection {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+}
+
+select {
+    padding: 5px;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+}
+
+/* 선택된 타일 영역의 크기 제한 */
+#selected-winning-tile,
+#selected-dora-tiles,
+#selected-ankan-tiles,
+#selected-ming-tiles {
+    max-height: 60px;
+    overflow: hidden;
+}
+
+/* 선택된 타일 이미지의 크기 강제 지정 */
+#selected-winning-tile img,
+#selected-dora-tiles img,
+#selected-ankan-tiles img,
+#selected-ming-tiles img {
+    width: 40px !important;
+    height: 60px !important;
+    object-fit: contain;
+    max-width: 40px;
+    max-height: 60px;
+}

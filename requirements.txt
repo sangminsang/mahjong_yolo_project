@@ -1,0 +1,7 @@
+opencv-contrib-python
+pillow-heif
+Pillow
+cryptography
+pyopenssl
+ultralytics
+flask

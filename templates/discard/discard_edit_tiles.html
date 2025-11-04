@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>마작패 편집</title>
+    <style>
+        .tile-container {
+            display: flex;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        
+        .tile-image {
+            width: 40px;
+            height: 60px;
+            margin: 5px;
+            border: 1px solid black;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .tile-image:hover {
+            transform: translateY(-5px);
+            transition: transform 0.2s;
+        }
+        
+        .tile-image.selected {
+            border: 2px solid #4CAF50;
+        }
+        
+        .remove-tile {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: red;
+            color: white;
+            border-radius: 50%;
+            width: 15px;
+            height: 15px;
+            text-align: center;
+            line-height: 15px;
+            cursor: pointer;
+        }
+        
+        .available-tiles {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .clickable-tile {
+            width: 40px;
+            height: 60px;
+            margin: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: 1px solid black;
+        }
+        
+        .clickable-tile:hover {
+            transform: translateY(-5px);
+        }
+        
+        .action-buttons {
+            margin: 20px 0;
+        }
+        
+        .btn {
+            font-size: 18px;
+            padding: 12px 24px;
+            margin: 0 10px;
+            color: aliceblue;
+            background-color: #4CAF50;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .btn-primary {
+            font-size: 20px;
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .btn-warning {
+            background-color: #ff9800;
+            color: white;
+        }
+        
+        .instructions {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .tile-count {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .tile-count.warning {
+            color: #dc3545;
+        }
+        @media screen and (max-width: 1000px){
+            h1 {
+                font-size: 40px;
+                color: rgb(44, 102, 168);
+            }
+            h2 {
+                font-size: 20px;
+            }
+            p {
+                font-size: 15px;
+            }
+            .instructions {
+                background-color: #f8f9fa;
+                padding: 10px;
+                border-radius: 5px;
+                margin-bottom: 20px;
+            }
+            .tile-container {
+                display: flex;
+                flex-wrap: wrap;
+                margin: 15px 0;
+            }
+            .available-tiles {
+                margin: 15px 0;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+            }
+            .action-buttons {
+                margin: 20px 0;
+            }
+            .tile-image {
+                width: 50px;
+                height: 75px;
+                margin: 15px;
+                border: 1px solid black;
+            }
+            .clickable-tile {
+                width: 50px;
+                height: 75px;
+                margin: 15px;
+                cursor: pointer;
+                transition: transform 0.2s;
+                border: 1px solid black;
+            }
+            .btn {
+                padding: 12px 25px; /*앞쪽이 상하, 뒤쪽이 좌우 여백*/
+                margin: 0 10px;
+                text-decoration: none;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 18px;
+                background-color: #4CAF50;
+                color: white;
+                margin-bottom: 15px;
+                text-decoration: none; 
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>마작패 편집</h1>
+    
+    <div class="instructions">
+        <p>인식된 패를 확인하고 필요한 경우 수정해주세요:</p>
+        <ul>
+            <li>현재 패를 <strong>클릭하면 제거</strong>할 수 있습니다.</li>
+            <li>아래 패 목록에서 클릭하면 새 패를 추가할 수 있습니다.</li>
+            <li>정확한 분석을 위해 14개의 패를 선택하는 것이 좋습니다.</li>
+        </ul>
+        <p>현재 선택된 패: <span id="tile-count" class="tile-count {% if tiles|length != 14 %}warning{% endif %}">{{ tiles|length }}</span>/14</p>
+    </div>
+    
+    <h2>현재 패</h2>
+    <div id="selected-tiles" class="tile-container">
+        {% for tile in tiles %}
+            <img src="{{ url_for('static', filename='images/tiles/' + tile + '.png') }}"
+                 alt="{{ tile }}"
+                 class="tile-image"
+                 data-tile="{{ tile }}"
+                 onclick="removeTile(this)"
+                 title="클릭하여 제거">
+        {% endfor %}
+    </div>
+    
+    <h2>패 추가</h2>
+    <div class="available-tiles">
+        {% for tile in available_tiles %}
+            <img src="{{ url_for('static', filename='images/tiles/' + tile + '.png') }}"
+                 alt="{{ tile }}"
+                 onclick="addTile('{{ tile }}')"
+                 class="clickable-tile"
+                 title="{{ tile }}">
+        {% endfor %}
+    </div>
+    
+    <form id="edit-form" action="{{ url_for('discard.analyze_edited') }}" method="POST">
+        <div id="hidden-inputs"></div>
+        <div class="action-buttons">
+            <button type="submit" class="btn">패 분석하기</button>
+            <a href="/" class="btn" style="background-color: #2196F3; float: right;">메인으로 돌아가기</a>
+        </div>
+    </form>
+    
+    <script>
+        // 마작패 정렬 함수
+        function sortMahjongTiles(tiles) {
+            // 타일 종류별 순서 정의
+            const suitOrder = {'m': 1, 'p': 2, 's': 3, 'z': 4};
+            
+            return tiles.sort((a, b) => {
+                // 타일 종류 추출 (마지막 문자)
+                const suitA = a.slice(-1);
+                const suitB = b.slice(-1);
+                
+                // 종류가 다르면 종류 순서대로 정렬
+                if (suitA !== suitB) {
+                    return suitOrder[suitA] - suitOrder[suitB];
+                }
+                
+                // 적도라 처리 (r5m, r5p, r5s)
+                if (a.startsWith('r5') && b.startsWith('5')) {
+                    return 1; // 적도라는 일반 5 다음에 배치
+                }
+                if (a.startsWith('5') && b.startsWith('r5')) {
+                    return -1;
+                }
+                
+                // 같은 종류 내에서는 숫자 순서대로 정렬
+                const numA = a.startsWith('r') ? parseInt(a.slice(1, 2)) : parseInt(a.slice(0, -1));
+                const numB = b.startsWith('r') ? parseInt(b.slice(1, 2)) : parseInt(b.slice(0, -1));
+                
+                return numA - numB;
+            });
+        }
+        
+        // 패 표시 업데이트 함수
+        function updateTileDisplay() {
+            const selectedTiles = Array.from(document.querySelectorAll('#selected-tiles .tile-image'))
+                .map(img => img.dataset.tile);
+            const sortedTiles = sortMahjongTiles(selectedTiles);
+            
+            // 현재 표시된 타일 모두 제거
+            document.getElementById('selected-tiles').innerHTML = '';
+            
+            // 정렬된 순서로 다시 추가
+            sortedTiles.forEach(tile => {
+                const img = document.createElement('img');
+                img.src = `/static/images/tiles/${tile}.png`;
+                img.alt = tile;
+                img.className = 'tile-image';
+                img.dataset.tile = tile;
+                img.onclick = function() { removeTile(this); };
+                img.title = "클릭하여 제거";
+                
+                document.getElementById('selected-tiles').appendChild(img);
+            });
+        }
+        
+        // 패 추가 함수
+        function addTile(tile) {
+            const img = document.createElement('img');
+            img.src = `/static/images/tiles/${tile}.png`;
+            img.alt = tile;
+            img.className = 'tile-image';
+            img.dataset.tile = tile;
+            img.onclick = function() { removeTile(this); };
+            img.title = "클릭하여 제거";
+            
+            document.getElementById('selected-tiles').appendChild(img);
+            updateTileCount();
+            updateTileDisplay(); // 패 추가 후 정렬
+        }
+        
+        // 패 제거 함수
+        function removeTile(element) {
+            element.remove();
+            updateTileCount();
+            updateTileDisplay(); // 패 제거 후 정렬
+        }
+        
+        // 패 개수 업데이트
+        function updateTileCount() {
+            const count = document.querySelectorAll('#selected-tiles .tile-image').length;
+            const countElement = document.getElementById('tile-count');
+            countElement.textContent = count;
+            
+            // 14개가 아니면 경고 스타일 적용
+            if (count !== 14) {
+                countElement.classList.add('warning');
+            } else {
+                countElement.classList.remove('warning');
+            }
+        }
+        
+        // 폼 제출 전 선택된 패 정보 추가
+        document.getElementById('edit-form').addEventListener('submit', function(e) {
+            const hiddenInputs = document.getElementById('hidden-inputs');
+            hiddenInputs.innerHTML = '';
+            
+            const selectedTiles = document.querySelectorAll('#selected-tiles .tile-image');
+            selectedTiles.forEach(tile => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'edited_tiles[]';
+                input.value = tile.dataset.tile;
+                hiddenInputs.appendChild(input);
+            });
+        });
+        
+        // 페이지 로드 시 정렬 실행
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTileDisplay();
+        });
+    </script>
+</body>
+</html>

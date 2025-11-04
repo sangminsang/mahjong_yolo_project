@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>점수 계산 결과</title>
+    <!-- 추가 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+         body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+            border: 1px solid black;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        /* 타일 스타일 */
+        .tile-image {
+            width: 40px;
+            height: 60px;
+            margin: 5px;
+            border: 1px solid black;
+        }
+        
+        .hand-display {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            border: 1px solid black;
+        }
+        
+        .yaku-list {
+            margin: 20px 0;
+        }
+        
+        .yaku-item {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+        
+        .score-calculation {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #e6ffe6;
+            border-radius: 5px;
+        }
+        
+        .hand-structure {
+            margin: 20px 0;
+        }
+        
+        .meld {
+            display: inline-block;
+            margin: 10px;
+            padding: 5px;
+            background-color: #fff0e6;
+            border-radius: 5px;
+        }
+
+        .tiles-group {
+            display: flex;
+            gap: 5px;
+            margin: 10px 0;
+        }
+        
+        .edit-button {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+        
+        .edit-button:hover {
+            background-color: #0069d9;
+        }
+        .btn {
+                display: inline-block;
+                text-decoration: none;
+                font-size: 18px;
+                border-radius: 5px;
+                color:aliceblue;
+                padding: 12px 24px;
+        }
+        
+        /* 반응형 적용 */
+        @media screen and (max-width: 600px) {
+            .tile-image {
+                width: 30px;
+                height: 45px; /* 모바일에서 타일 크기 조정 */
+            }
+            .container {
+                width: 100%;
+                padding: 10px;
+            }
+            .yaku-item {
+                font-size: 14px; /* 작은 화면에서 폰트 크기 조정 */
+                padding: 8px;
+            }
+            .score-calculation {
+                font-size: 14px;
+                padding: 10px;
+            }
+            .tiles-group {
+                gap: 2px; /* 간격 줄이기 */
+            }
+        }
+    </style>
+    <!-- 추가 끝 -->
+</head>
+<body>
+    <h1>점수 계산 결과</h1>
+    {% if result.error %}
+        <p>{{ result.error }}</p>
+        <p>
+            <a href="{{ url_for('score.score_calculation') }}" class="edit-button">다시 시도하기</a>
+        </p>
+    {% else %}
+        <h2>인식된 패
+            <form action="{{ url_for('score.score_recalculate') }}" method="POST" style="display: inline;">
+                <!-- 현재 패 정보를 hidden input으로 전달 -->
+                {% for tile in result.tiles %}
+                    <input type="hidden" name="edited_tiles[]" value="{{ tile }}">
+                {% endfor %}
+                
+                <!-- 추가 정보 전달 -->
+                {% if result.additional_info %}
+                    {% for key, value in result.additional_info.items() %}
+                        {% if value is iterable and value is not string %}
+                            {% for item in value %}
+                                <input type="hidden" name="{{ key }}[]" value="{{ item }}">
+                            {% endfor %}
+                        {% else %}
+                            <input type="hidden" name="{{ key }}" value="{{ value }}">
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                
+                <button type="submit" class="edit-button">패 수정하기</button>
+            </form>
+        </h2>
+        <div class="hand-display">
+            {% for tile in result.tiles %}
+                <img src="{{ url_for('static', filename='images/tiles/' + tile + '.png') }}"
+                     alt="{{ tile }}"
+                     class="tile-image"
+                     title="{{ tile }}">
+            {% endfor %}
+        </div>
+
+        <h2>패 구성</h2>
+        <div class="hand-structure">
+            {% if result.head %}
+            <div class="meld">
+                <h3>머리</h3>
+                <div class="tiles-group">
+                    {% for tile in result.head %}
+                        <img src="{{ url_for('static', filename='images/tiles/' + tile + '.png') }}"
+                            alt="{{ tile }}"
+                            class="tile-image"
+                            title="{{ tile }}">
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if result.bodies %}
+                {% for body in result.bodies %}
+                <div class="meld">
+                    <h3>몸통</h3>
+                    <div class="tiles-group">
+                        {% for tile in body %}
+                            <img src="{{ url_for('static', filename='images/tiles/' + tile + '.png') }}"
+                                alt="{{ tile }}"
+                                class="tile-image"
+                                title="{{ tile }}">
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}   
+        </div>
+
+        <h2>성립된 역</h2>
+        <div class="yaku-list">
+            {% for yaku in result.yakus %}
+            <div class="yaku-item">
+                <h3>{{ yaku.name }}</h3>
+                <p>{{ yaku.description }} ({{ yaku.han }}판)</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <h2>점수 계산</h2>
+        <div class="score-calculation">
+            <p>총 판수: {{ result.yakus | sum(attribute='han') }}판</p>
+            <p>부수: {{ result.fu }}부</p>
+            {% if result.fu_details %}
+            <h3>부수 계산 상세</h3>
+            <ul>
+                {% for detail in result.fu_details %}
+                <li>{{ detail }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            <h3>최종 점수</h3>
+            <p>{{ result.final_score }}점</p>
+            {% if result.payment_details %}
+            <h3>지불 방식</h3>
+            <p>{{ result.payment_details }}</p>
+            {% endif %}
+        </div>
+    {% endif %}
+    
+    <script>
+        // 마작패 정렬 함수
+        function sortMahjongTiles(tiles) {
+            // 타일 종류별 순서 정의
+            const suitOrder = {'m': 1, 'p': 2, 's': 3, 'z': 4, 'B': 5}; // B는 Back의 첫 글자
+            
+            return tiles.sort((a, b) => {
+                // 뒷면 타일은 항상 맨 뒤로
+                if (a === 'Back') return 1;
+                if (b === 'Back') return -1;
+                
+                // 타일 종류 추출 (마지막 문자)
+                const suitA = a.slice(-1);
+                const suitB = b.slice(-1);
+                
+                // 종류가 다르면 종류 순서대로 정렬
+                if (suitA !== suitB) {
+                    return suitOrder[suitA] - suitOrder[suitB];
+                }
+                
+                // 적도라 처리 (r5m, r5p, r5s)
+                if (a.startsWith('r5') && b.startsWith('5')) {
+                    return 1; // 적도라는 일반 5 다음에 배치
+                }
+                if (a.startsWith('5') && b.startsWith('r5')) {
+                    return -1;
+                }
+                
+                // 같은 종류 내에서는 숫자 순서대로 정렬
+                const numA = a.startsWith('r') ? parseInt(a.slice(1, 2)) : parseInt(a.slice(0, -1));
+                const numB = b.startsWith('r') ? parseInt(b.slice(1, 2)) : parseInt(b.slice(0, -1));
+                
+                return numA - numB;
+            });
+        }
+        
+        // 페이지 로드 시 패 정렬
+        document.addEventListener('DOMContentLoaded', function() {
+            const handDisplay = document.querySelector('.hand-display');
+            if (handDisplay) {
+                const tileImages = Array.from(handDisplay.querySelectorAll('.tile-image'));
+                const tiles = tileImages.map(img => img.alt);
+                const sortedTiles = sortMahjongTiles(tiles);
+                
+                // 정렬된 순서대로 이미지 재배치
+                handDisplay.innerHTML = '';
+                sortedTiles.forEach(tile => {
+                    const img = document.createElement('img');
+                    img.src = `/static/images/tiles/${tile}.png`;
+                    img.alt = tile;
+                    img.className = 'tile-image';
+                    img.title = tile;
+                    handDisplay.appendChild(img);
+                });
+            }
+        });
+    </script>
+    <a href="/" class="btn" style="background-color: #2196F3; float: right;">메인으로 돌아가기</a>
+</body>
+</html>

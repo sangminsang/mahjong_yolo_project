@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Detection Results</title>
+</head>
+<body>
+    <h1>Detected Mahjong Tiles</h1>
+    <ul>
+        {% for tile in tiles %}
+            <li>{{ tile }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Recommended Tile to Discard: {{ recommended_tile }}</h2>
+
+    <a href="/">Go Back</a>
+</body>
+</html>

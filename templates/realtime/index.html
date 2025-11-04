@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>실시간 마작패 인식</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 20px auto;
+            border: 3px solid #2196F3;
+            border-radius: 10px;
+            overflow: hidden;
+            aspect-ratio: 16/6; /* 더 넓고 높이가 낮은 비율로 변경 */
+        }
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scale(2.5); /* 비디오를 더 크게 확대 */
+            object-position: center 40%; /* 중앙에서 약간 위쪽으로 초점 이동 */
+        }
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .info {
+            margin: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .btn {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .detection-results {
+            margin: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: left;
+        }
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            color: red;
+            font-weight: bold;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        @media screen and (orientation: landscape) {
+            h1 {
+                font-size: 24px;
+            }
+            .video-container {
+                position: relative;
+                width: 100%;
+                max-width: 640px;
+                margin: 20px auto;
+                border: 3px solid #2196F3;
+                border-radius: 10px;
+                overflow: hidden;
+                aspect-ratio: 3.5/1; /* 가로모드에서 더 넓고 높이가 낮은 비율로 변경 */ /*가로 - 세로*/
+             }
+            #video {
+                width: 100px;
+                height: 1000px;
+                object-fit: cover;
+                object-position: center 40%; /* 중앙에서 약간 위쪽으로 초점 이동 */
+            }            
+            .btn {
+                font-size: 18px;
+                padding: 12px 24px;
+            }
+        }
+        @media screen and (orientation: portrait) {
+            .video-container {
+                aspect-ratio: 9 / 12; /* 세로 모드 비율 */ /*가로-세로*/
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+    </div>
+    <div class="container">
+        <h1>실시간 마작패 인식</h1>
+        
+        <div class="video-container">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <div id="error-message" class="error-message">
+            카메라 접근에 실패했습니다. 카메라 권한을 확인해주세요.
+        </div>
+        
+        <div class="info">
+            <p>카메라를 마작패에 향하게 하면 자동으로 패를 인식합니다.</p>
+            <p>인식된 패는 화면에 표시됩니다.</p>
+        </div>
+        
+        <div class="detection-results">
+            <h3>인식된 마작패:</h3>
+            <p id="detected-tiles">아직 인식된 패가 없습니다.</p>
+        </div>
+        
+        <button id="start-btn" class="btn">카메라 시작</button>
+        <button id="stop-btn" class="btn" style="background-color: #f44336;" disabled>카메라 중지</button>
+        <a href="/" class="btn" style="background-color: #2196F3;">메인으로 돌아가기</a>
+    </div>
+    
+    <script>
+        // 전역 변수
+        let video = null;
+        let canvas = null;
+        let ctx = null;
+        let isStreaming = false;
+        let processingInterval = null;
+        
+        // DOM 요소
+        document.addEventListener('DOMContentLoaded', function() {
+            video = document.getElementById('video');
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const errorMessage = document.getElementById('error-message');
+            const loading = document.getElementById('loading');
+            
+            // 시작 버튼 클릭 이벤트
+            startBtn.addEventListener('click', async () => {
+                loading.style.display = 'flex';
+                try {
+                    await startCamera();
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    errorMessage.style.display = 'none';
+                } catch (error) {
+                    console.error('카메라 시작 실패:', error);
+                    if (error.name === 'NotAllowedError') {
+                        errorMessage.textContent = '카메라 접근이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.';
+                    } else if (error.name === 'NotFoundError') {
+                        errorMessage.textContent = '카메라를 찾을 수 없습니다. 카메라가 연결되어 있는지 확인해주세요.';
+                    } else {
+                        errorMessage.textContent = `카메라 접근에 실패했습니다: ${error.message}`;
+                    }
+                    errorMessage.style.display = 'block';
+                } finally {
+                    loading.style.display = 'none';
+                }
+            });
+            
+            // 중지 버튼 클릭 이벤트
+            stopBtn.addEventListener('click', () => {
+                stopCamera();
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            });
+        });
+        
+        // 카메라 시작 함수
+        async function startCamera() {
+            if (isStreaming) return;
+            
+            try {
+                // 후면 카메라 사용 및 가로 모드 설정 - 해상도 낮춤
+                const constraints = {
+                    video: {
+                        facingMode: "environment", // 후면 카메라 사용
+                        width: { ideal: 1280 }, // 해상도 낮춤 (1920 -> 1280)
+                        height: { ideal: 720 }, // 해상도 낮춤 (1080 -> 720)
+                        aspectRatio: { ideal: 16/9 }, // 와이드 화면 비율
+                        focusMode: "continuous" // 자동 초점 모드
+                    }
+                };
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                
+                return new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        // 비디오 크기에 맞게 캔버스 조정
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        
+                        // 비디오 재생 시작
+                        video.play();
+                        isStreaming = true;
+                        
+                        // 이미지 처리 시작
+                        startImageProcessing();
+                        resolve();
+                    };
+                });
+            } catch (error) {
+                console.error('카메라 접근 오류:', error);
+                throw error;
+            }
+        }
+        
+        // 카메라 중지 함수
+        function stopCamera() {
+            if (!isStreaming) return;
+            
+            // 이미지 처리 중지
+            if (processingInterval) {
+                clearInterval(processingInterval);
+                processingInterval = null;
+            }
+            
+            // 비디오 스트림 중지
+            const stream = video.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            video.srcObject = null;
+            
+            // 캔버스 초기화
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 감지 결과 초기화
+            document.getElementById('detected-tiles').textContent = '아직 인식된 패가 없습니다.';
+            
+            isStreaming = false;
+        }
+        
+        // 이미지 처리 시작 함수
+        function startImageProcessing() {
+            if (processingInterval) {
+                clearInterval(processingInterval);
+            }
+            
+            // 주기적으로 이미지 처리 수행
+            processingInterval = setInterval(async () => {
+                if (!isStreaming) return;
+                
+                try {
+                    await processCurrentFrame();
+                } catch (error) {
+                    console.error('이미지 처리 오류:', error);
+                }
+            }, 500); // 500ms 간격으로 처리 (2 FPS)
+        }
+        
+        // 현재 프레임 처리 함수
+        async function processCurrentFrame() {
+            if (!isStreaming) return;
+            
+            // 캔버스에 비디오 프레임 그리기
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // 캔버스 이미지를 Base64로 변환
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // 서버로 이미지 전송
+            try {
+                const response = await fetch('/realtime/process_image', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        image: imageData
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    // 감지 결과 표시
+                    drawDetections(result.detections);
+                    updateDetectedTiles(result.detections);
+                } else {
+                    console.error('서버 처리 오류:', result.message);
+                }
+            } catch (error) {
+                console.error('서버 통신 오류:', error);
+            }
+        }
+        
+        // 감지 결과 그리기 함수
+        function drawDetections(detections) {
+            // 비디오의 중앙 부분만 캔버스에 그리기
+            const videoAspectRatio = video.videoWidth / video.videoHeight;
+            const canvasAspectRatio = canvas.width / canvas.height;
+            
+            let drawWidth, drawHeight, startX, startY;
+            
+            if (videoAspectRatio > canvasAspectRatio) {
+                drawHeight = video.videoHeight;
+                drawWidth = drawHeight * canvasAspectRatio;
+                startX = (video.videoWidth - drawWidth) / 2;
+                startY = 0;
+            } else {
+                drawWidth = video.videoWidth;
+                drawHeight = drawWidth / canvasAspectRatio;
+                startX = 0;
+                startY = (video.videoHeight - drawHeight) / 2;
+            }
+
+            ctx.drawImage(video, startX, startY, drawWidth, drawHeight, 0, 0, canvas.width, canvas.height);
+
+            // 감지된 객체 그리기
+            detections.forEach(detection => {
+                const [x1, y1, x2, y2] = detection.box;
+                const label = detection.name;
+                const score = detection.confidence;
+
+                // 좌표 변환
+                const scaleX = canvas.width / drawWidth;
+                const scaleY = canvas.height / drawHeight;
+                const boxX = (x1 - startX) * scaleX;
+                const boxY = (y1 - startY) * scaleY;
+                const boxWidth = (x2 - x1) * scaleX;
+                const boxHeight = (y2 - y1) * scaleY;
+
+                // 박스 그리기
+                ctx.strokeStyle = '#00FF00';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+                // 라벨 배경 그리기
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+                ctx.font = '24px Arial';
+                const textWidth = ctx.measureText(`${label} ${(score * 100).toFixed(1)}%`).width;
+                ctx.fillRect(boxX, boxY - 35, textWidth + 10, 35);
+
+                // 라벨 텍스트 그리기
+                ctx.fillStyle = '#000000';
+                ctx.fillText(`${label} ${(score * 100).toFixed(1)}%`, boxX + 5, boxY - 10);
+            });
+        }
+        
+        // 감지된 타일 목록 업데이트 함수
+        function updateDetectedTiles(detections) {
+            const detectedTilesElement = document.getElementById('detected-tiles');
+            
+            if (detections.length > 0) {
+                const tileNames = detections.map(detection => detection.name);
+                detectedTilesElement.textContent = tileNames.join(', ');
+            } else {
+                detectedTilesElement.textContent = '아직 인식된 패가 없습니다.';
+            }
+        }
+    </script>
+</body>
+</html>

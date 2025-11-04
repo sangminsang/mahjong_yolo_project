@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>마작 도우미</title>
+    <style>
+        /* 기본 스타일 */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        h1 {
+            margin-top: 30px;
+            align-items: center;
+        }
+        .buttons {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 10px;
+            font-size: 18px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn-realtime {
+            background-color: #2196F3;
+        }
+        .btn-realtime:hover {
+            background-color: #0b7dda;
+        }
+
+        /* 반응형 웹 적용 */
+        @media screen and (max-width: 1000px) {
+            h1 {
+                font-size: 100px;
+            }
+            body {
+                height: 80vh;
+            }
+            .buttons {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .btn {
+                width: 400px;
+                height: 80px;
+                max-width: 90%;
+                overflow: hidden;
+                padding: 15px 20px;
+                font-size: 50px;
+                white-space: nowrap;
+                margin: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>마작 도우미</h1>
+    <div class="buttons">
+        <a href="/score" class="btn">점수 계산</a>
+        <a href="/discard" class="btn">버림패 추천</a>
+        <a href="/realtime" class="btn">실시간 패 인식</a>
+        <a href="/guide" class="btn">참고 사이트</a>
+    </div>
+</body>
+</html>
